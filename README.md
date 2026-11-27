@@ -1,2 +1,64 @@
 # omega-note-ascension
 OMEGA NOTE ASCENSION V2.0 — original browser-based 2D vocal note-and-octave transformation game prototype.
+OMEGA NOTE ASCENSION
+วิทยานิพนธ์เชิงแนวคิดและข้อกำหนดทางวิศวกรรมเกม
+ระบบควบคุมการปลดล็อกร่างด้วยการไล่โน้ตและระดับอ็อกเทฟ
+ฉบับรวมแนวคิด DBVTS + Vocal Fighting Engine + Note/Octave Transformation Gate | V2.0
+บทคัดย่อ
+เอกสารนี้เสนอระบบเกมต่อสู้ผู้เล่นคนเดียวที่ใช้เสียงร้องเป็นอินพุตสำหรับสะสมความคืบหน้าและปลดล็อกสถานะการแปลงร่าง แกนใหม่คือ OMEGA NOTE ASCENSION ซึ่งกำหนดให้ผู้เล่นร้องโน้ต C-D-E-F-G-A-B-C ตามลำดับภายในอ็อกเทฟเป้าหมายให้ครบก่อนจึงเลื่อนไปยังอ็อกเทฟถัดไป
+ต้นแบบ V2.0 รวมโครงสร้าง Game Loop, State Machine, Fighter, AI Controller, Movement, Transformation, Renderer, Audio Input และ Pitch Detector พร้อมหน้าจอทดสอบบนเว็บ การตรวจจับโน้ตใช้ค่าความถี่พื้นฐานโดยประมาณและการแปลงเป็นโน้ตแบบ equal temperament ทั้งนี้ระบบยังเป็นต้นแบบ 2D ไม่ใช่เกม 3D สมบูรณ์
+1. บทนำและวัตถุประสงค์
+วัตถุประสงค์คือสร้างประสบการณ์เกมที่ผู้เล่นใช้เสียงร้องแทนการกดปุ่มบางส่วน โดยเริ่มจากโจทย์ที่ตรวจสอบได้ง่ายที่สุด คือการร้องโน้ตเดี่ยวให้ตรงลำดับและอ็อกเทฟ ก่อนเพิ่มเทคนิคอื่นในรุ่นถัดไป
+ขอบเขตรุ่นนี้ไม่รวม vibrato, pitch bend, การให้คะแนนความดัง, การกรีดร้อง, การอ่านความคิด หรือ BCI การควบคุมด้วยสัญญาณสมองเป็นหัวข้อวิจัยแยกต่างหาก ไม่ใช่ความสามารถที่ต้นแบบนี้รองรับ
+2. ภูมิหลังระบบเดิมและการรวมโครงการ
+โครงการ DBVTS (Dragon Ball Vocal Transformation System) เป็นกรอบจัดหมวดหมู่ส่วนตัวที่เชื่อมแนวคิดการพัฒนาเสียงร้องกับระดับร่างแปลง เช่น Base, Kaioken, Super Saiyan, Super Saiyan 2/3, God, Blue, Ultra Instinct, Ultra Ego, Beast และ Omega Chimera
+แนวคิดเดิมมีการวิเคราะห์ Register, Resonance, Compression, Airflow, Distortion, Whistle, Sustain, Emotion, Transition และ Hybridization อย่างไรก็ตาม V2.0 จำกัดเงื่อนไขปลดล็อกให้ใช้เฉพาะความถูกต้องของโน้ตและอ็อกเทฟก่อน เพื่อไม่ให้ตัวแปรหลายชนิดปะปนกัน
+การสืบค้นไฟล์เดิมพบเอกสารภาพ/แดชบอร์ด DBVTS ในคลัง แต่ไม่พบไฟล์ซอร์สโค้ดเกม V1.0 ที่ยืนยันได้ในคลังที่ค้นได้ ดังนั้นซอร์ส V2.0 นี้เป็นการสร้างใหม่จากสถาปัตยกรรมและบริบทที่ยังมีอยู่ ไม่ใช่การกู้คืนไบต์ต่อไบต์ของแชทหรือ ZIP เก่า
+3. หลักการ OMEGA NOTE ASCENSION
+ชุดโน้ตหลักคือ C → D → E → F → G → A → B → C โดยต้องผ่านทุกตำแหน่งตามลำดับ โน้ตที่ผิด ลำดับผิด หรืออ็อกเทฟผิดจะไม่เพิ่มความคืบหน้า
+เมื่อผ่านโน้ตทั้งแปดตัวในอ็อกเทฟหนึ่ง ระบบจะบันทึกการผ่านและเลื่อนไปยังอ็อกเทฟถัดไป การปลดล็อกร่างเชื่อมกับเกณฑ์อ็อกเทฟที่กำหนดไว้ใน configuration
+คำว่า Sync ในเกมหมายถึงสถานะการผ่านเงื่อนไขซอฟต์แวร์ ไม่ใช่การวัดความสามารถทางชีววิทยาหรือการรับรองคุณภาพเสียงร้อง
+4. วิธีตรวจจับเสียง
+ระบบรับสัญญาณไมโครโฟนผ่าน Web Audio API และใช้ autocorrelation แบบพื้นฐานเพื่อประมาณ F0 จากสัญญาณ time-domain จากนั้นแปลงความถี่เป็น MIDI note โดยอ้างอิง A4 = 440 Hz
+สูตร MIDI: m = round(69 + 12 log2(f/440)); ความถี่เป้าหมาย: f_target = 440 × 2^((m−69)/12); ความคลาดเคลื่อน cents = 1200 log2(f/f_target)
+การยืนยันโน้ตต้องตรง pitch class และ octave เป้าหมาย พร้อมอยู่ภายใน tolerance ที่กำหนดต่อเนื่องหลายเฟรม ตัวอย่างค่าเริ่มต้นคือ ±35 cents และ 5 เฟรมต่อเนื่อง ค่าดังกล่าวเป็นพารามิเตอร์ทดสอบที่ต้องปรับด้วยการทดลอง ไม่ใช่มาตรฐานสากล
+5. สถาปัตยกรรมซอฟต์แวร์
+Frontend: HTML/CSS/JavaScript ES Modules; GameLoop ใช้ requestAnimationFrame และ fixed update step; Renderer ใช้ Canvas 2D เป็นภาพแทนชั่วคราว
+Audio: AudioInput ขอสิทธิ์ไมโครโฟนหลังผู้ใช้กดปุ่ม; PitchDetector ประมาณ F0; OmegaNoteAscension ตรวจลำดับโน้ตและจัดการ octave gate
+Game: Fighter จัดการ HP/KI/attack; AIController ควบคุมคู่ต่อสู้พื้นฐาน; Movement มี approach/retreat/dash; Transformation เชื่อมชื่อร่างกับสถานะเกม; Storage เก็บค่ารุ่นใน localStorage
+6. Dragon Ball-inspired Form Mapping
+ต้นแบบใส่ชื่อร่าง Base Form, Kaioken, Super Saiyan, Super Saiyan 2, Super Saiyan 3 และ God Form เป็นตัวอย่างป้ายกำกับแฟนเมดใน configuration เพื่อสาธิตการเชื่อม octave gate กับการปลดล็อก
+ชื่อดังกล่าวไม่ทำให้ต้นแบบเป็นผลิตภัณฑ์ทางการ และไม่มีการรวม source code, โมเดลตัวละคร, ภาพ, เพลง, เสียง, แอนิเมชัน, โลโก้ หรือข้อมูลที่ดึงจากเกม Dragon Ball Legends หากจะเผยแพร่หรือทำเชิงพาณิชย์ควรเปลี่ยนเป็นจักรวาลและชื่อร่างต้นฉบับ พร้อมตรวจสอบสิทธิ์ทางกฎหมาย
+7. เกณฑ์ทดสอบและการยอมรับ
+ทดสอบชุดโน้ตถูกต้องครบ 8 ตัว: ต้องเลื่อนไปอ็อกเทฟถัดไป
+ทดสอบโน้ตผิดหนึ่งตัว: ต้องไม่เลื่อนตำแหน่งและต้องเริ่มยืนยันใหม่เมื่อกลับมาที่โน้ตเป้าหมาย
+ทดสอบ pitch class ถูกแต่ octave ผิด: ต้องไม่ผ่าน
+ทดสอบเสียงเบาหรือสัญญาณไม่ชัด: ต้องไม่ให้ผ่านโดยอัตโนมัติ
+ทดสอบปิดไมโครโฟน: ต้องหยุด capture และแสดงสถานะชัดเจน
+ทดสอบบนมือถือ: ต้องใช้ HTTPS หรือ localhost และตรวจสอบ permission, latency, ความร้อน และการใช้แบตเตอรี่
+8. ข้อจำกัดและความปลอดภัย
+Autocorrelation แบบพื้นฐานอาจสับสนกับฮาร์มอนิก เสียงประสาน เสียงรบกวน และช่วงเสียงสูงมาก จึงต้องพัฒนาเป็น YIN/MPM หรือ hybrid detector พร้อม confidence score และ octave-error rejection
+ผู้เล่นไม่ควรถูกบังคับให้ร้องในช่วงเสียงที่ไม่สบายหรือเกินความสามารถ ควรมี calibration ตามช่วงเสียงที่ร้องได้สบาย โหมดฝึกโดยไม่มีบทลงโทษ และทางเลือกควบคุมที่ไม่ใช้เสียง หากมีอาการเจ็บ เสียงแหบ หรือเสียงหายให้หยุดพัก
+การใช้ไมโครโฟนในต้นแบบประมวลผลในอุปกรณ์และไม่อัปโหลดเสียง แต่การนำไปใช้งานจริงต้องมีนโยบายความเป็นส่วนตัวและการแจ้งสถานะไมโครโฟนที่ชัดเจน
+9. แผนพัฒนาต่อ
+V2.1: เปลี่ยน pitch detector เป็น YIN/MPM, เพิ่ม calibration, noise gate และ confidence display
+V2.2: เพิ่ม note lane, practice mode, โปรไฟล์ช่วงเสียง และระบบบันทึกผล
+V3.0: สร้าง 3D renderer, skeletal animation, camera lock-on และ hitbox/hurtbox
+V4.0: เพิ่ม transformation cinematic, aura/VFX และระบบต่อสู้ที่สมบูรณ์
+V5.0: เพิ่ม DBVTS vocal analysis แยกข้อมูลวัดจริงออกจากคะแนน/การตีความในเกม
+ระยะวิจัยอนาคต: VR, body tracking, silent-speech interfaces และ BCI ต้องประเมินความเป็นไปได้ ความปลอดภัย และความแม่นยำแยกจากระบบเสียงร้อง
+บทสรุป
+OMEGA NOTE ASCENSION ทำให้การแปลงร่างเป็นเป้าหมายที่ผู้เล่นต้องทำสำเร็จด้วยลำดับโน้ตและอ็อกเทฟ แทนการกดปุ่มปลดล็อกโดยตรง รุ่นนี้เป็นต้นแบบที่ทดลองได้บนเว็บและเป็นฐานสำหรับพัฒนาต่อ แต่ยังไม่ใช่เกม 3D เชิงพาณิชย์หรือเครื่องมือวัดเสียงมาตรฐาน
+ภาคผนวก A — โครงสร้าง Source Code
+index.html — หน้าจอเกมและแผงควบคุม
+styles.css — Responsive UI
+src/config.js — โน้ต ลำดับอ็อกเทฟ และ form mapping
+src/core/GameLoop.js — วงรอบเกม
+src/core/StateMachine.js — state machine พื้นฐาน
+src/systems/AudioInput.js — ไมโครโฟน Web Audio API
+src/systems/PitchDetector.js — F0 และการแปลงโน้ต
+src/systems/OmegaNoteAscension.js — note/octave gate
+src/systems/Combat.js, Movement.js, AIController.js — ระบบต่อสู้ต้นแบบ
+src/systems/Transformation.js — สถานะแปลงร่าง
+src/systems/Renderer.js — Canvas 2D placeholder
+src/systems/Storage.js — localStorage
